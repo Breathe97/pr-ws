@@ -52,7 +52,7 @@ export interface PrWebSocketOptions {
 export class PrWebSocket {
   #options = {
     url: '',
-    binaryType: 'arraybuffer' as BinaryType,
+    binaryType: 'blob' as BinaryType,
     timeout: 6 * 1000,
     reconnectCount: -1,
     reconnectIntervalTime: 3000,
