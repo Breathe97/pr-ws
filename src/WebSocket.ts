@@ -122,17 +122,6 @@ export class PrWebSocket {
     this.#options.onMessage(data)
   }
 
-  // 心跳
-  #initHeartbeat = () => {
-    if (this.#heartbeatIntervalTimer) {
-      clearInterval(this.#heartbeatIntervalTimer)
-    }
-    this.#heartbeatIntervalTimer = setInterval(() => {
-      const message = this.#options.getHeartbeatMsg()
-      this.sendMessage(message)
-    }, this.#options.heartbeatIntervalTime)
-  }
-
   // 连接成功
   #onOpen = () => {
     this.#surplusReconnectCount = this.#options.reconnectCount // 连接成功 重置重连次数
@@ -153,6 +142,17 @@ export class PrWebSocket {
     this.#reconnect(e)
   }
 
+  // 心跳
+  #initHeartbeat = () => {
+    if (this.#heartbeatIntervalTimer) {
+      clearInterval(this.#heartbeatIntervalTimer)
+    }
+    this.#heartbeatIntervalTimer = setInterval(() => {
+      const message = this.#options.getHeartbeatMsg()
+      this.sendMessage(message)
+    }, this.#options.heartbeatIntervalTime)
+  }
+
   // 重新连接
   #reconnect = (e: Event | CloseEvent) => {
     // 清除之前的计时器
@@ -162,7 +162,6 @@ export class PrWebSocket {
 
     if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return // 没有剩余重连次数
     const isReconnect = this.#options.checkReconnect(e) // 判断是否重连
-    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe:isReconnect`, isReconnect)
     if (!isReconnect) return this.close()
 
     const func = () => {
