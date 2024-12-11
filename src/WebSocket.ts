@@ -40,7 +40,7 @@ export interface PrWebSocketOptions {
    * 自定义心跳事件
    * @description 将函数的返回值作为每次心跳的message
    */
-  heartbeatFunc?: () => string | ArrayBufferLike | Blob | ArrayBufferView
+  getHeartbeatMsg?: () => string | ArrayBufferLike | Blob | ArrayBufferView
 
   /**
    * 消息回调
@@ -58,7 +58,7 @@ export class PrWebSocket {
     reconnectIntervalTime: 3000,
     heartbeatIntervalTime: 10000,
     checkReconnect: (_e: any) => true,
-    getHeartbeatMsg: () => JSON.stringify({ event: 'heartbeat' }),
+    getHeartbeatMsg: () => JSON.stringify({ event: 'heartbeat' }) as string | ArrayBufferLike | Blob | ArrayBufferView,
     onMessage: (_e: any) => {}
   }
 
