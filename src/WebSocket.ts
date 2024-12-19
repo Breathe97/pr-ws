@@ -87,10 +87,17 @@ export class PrWebSocket {
       this.#ws.binaryType = this.#options.binaryType
 
       // 添加回调事件
-      this.#ws.addEventListener('open', this.#onOpen)
-      this.#ws.addEventListener('message', this.#onMessage)
-      this.#ws.addEventListener('error', this.#onError)
-      this.#ws.addEventListener('close', this.#onClose)
+      // this.#ws.addEventListener('open', this.#onOpen)
+      // this.#ws.addEventListener('message', this.#onMessage)
+      // this.#ws.addEventListener('error', this.#onError)
+      // this.#ws.addEventListener('close', this.#onClose)
+      this.#ws.onopen = this.#onOpen
+      this.#ws.onmessage = this.#onMessage
+      this.#ws.onerror = this.#onError
+      this.#ws.onclose = this.#onClose
+
+      // @ts-ignore
+      window.prws = this.#ws
     })
   }
 
@@ -109,11 +116,11 @@ export class PrWebSocket {
    */
   sendMessage = async (_data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
     if (!this.#ws) {
-      console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is undefined.`, this.#ws)
-      return
+      await this.connect()
+      console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ws connect.`, this.#ws)
     }
     // 发送消息
-    this.#ws.send(_data)
+    this.#ws!.send(_data)
   }
 
   // 服务端消息回调
@@ -124,6 +131,7 @@ export class PrWebSocket {
 
   // 连接成功
   #onOpen = () => {
+    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws:连接成功`, this.#options)
     this.#surplusReconnectCount = this.#options.reconnectCount // 连接成功 重置重连次数
     this.#initHeartbeat() // 开启心跳
     this.#resolve(this.#ws)
@@ -137,8 +145,7 @@ export class PrWebSocket {
 
   // 连接关闭
   #onClose = (e: CloseEvent) => {
-    console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws:连接关闭`, e)
-    this.close()
+    console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws:连接关闭${e.target === this.#ws}`, e)
     this.#reconnect(e)
   }
 
@@ -149,26 +156,24 @@ export class PrWebSocket {
     }
     this.#heartbeatIntervalTimer = setInterval(() => {
       const message = this.#options.getHeartbeatMsg()
-      this.sendMessage(message)
+      if (message) {
+        this.sendMessage(message)
+      }
     }, this.#options.heartbeatIntervalTime)
   }
 
   // 重新连接
   #reconnect = (e: Event | CloseEvent) => {
-    // 清除之前的计时器
-    if (this.#reconnectIntervalTimer) {
-      clearInterval(this.#reconnectIntervalTimer)
-    }
+    this.close() // 尝试关闭
 
     if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return // 没有剩余重连次数
     const isReconnect = this.#options.checkReconnect(e) // 判断是否重连
-    if (!isReconnect) return this.close()
+    if (!isReconnect) return // 禁止重连
 
     const func = () => {
       this.connect()
       this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
     }
-    func()
     this.#reconnectIntervalTimer = setTimeout(func, this.#options.reconnectIntervalTime)
   }
 }
