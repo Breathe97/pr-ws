@@ -192,12 +192,12 @@ export class PrWebSocket {
       }
       return // 禁止重连
     }
+    if (this.#options.debug) {
+      console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await reconnect.`, e)
+    }
 
     // 即将重连
     const func = async () => {
-      if (this.#options.debug) {
-        console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await reconnect.`, e)
-      }
       await this.connect()
       this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
     }
