@@ -15,6 +15,11 @@ export interface PrWebSocketOptions {
   timeout?: number
 
   /**
+   * 开启后会在控制台显示相关操作日志 默认为false
+   */
+  debug?: boolean
+
+  /**
    * 重连最大次数
    * @description 默认-1 不限次数 0为不重连
    */
@@ -54,6 +59,7 @@ export class PrWebSocket {
     url: '',
     binaryType: 'blob' as BinaryType,
     timeout: 6 * 1000,
+    debug: false,
     reconnectCount: -1,
     reconnectIntervalTime: 3000,
     heartbeatIntervalTime: 10000,
@@ -77,6 +83,16 @@ export class PrWebSocket {
   }
 
   /**
+   * 关闭
+   */
+  close = (code: number = 1000, reason: string = '主动关闭') => {
+    clearInterval(this.#reconnectIntervalTimer)
+    clearInterval(this.#heartbeatIntervalTimer)
+    this.#ws?.close(code, reason)
+    this.#ws = undefined
+  }
+
+  /**
    * 连接
    */
   connect = () => {
@@ -86,29 +102,12 @@ export class PrWebSocket {
       this.#ws = new WebSocket(this.#options.url)
       this.#ws.binaryType = this.#options.binaryType
 
-      // 添加回调事件
-      // this.#ws.addEventListener('open', this.#onOpen)
-      // this.#ws.addEventListener('message', this.#onMessage)
-      // this.#ws.addEventListener('error', this.#onError)
-      // this.#ws.addEventListener('close', this.#onClose)
+      // 指定回调事件
       this.#ws.onopen = this.#onOpen
       this.#ws.onmessage = this.#onMessage
       this.#ws.onerror = this.#onError
       this.#ws.onclose = this.#onClose
-
-      // @ts-ignore
-      window.prws = this.#ws
     })
-  }
-
-  /**
-   * 关闭
-   */
-  close = () => {
-    clearInterval(this.#reconnectIntervalTimer)
-    clearInterval(this.#heartbeatIntervalTimer)
-    this.#ws?.close()
-    this.#ws = undefined
   }
 
   /**
@@ -116,8 +115,10 @@ export class PrWebSocket {
    */
   sendMessage = async (_data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
     if (!this.#ws) {
+      if (this.#options.debug) {
+        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is undefined. await connect.`, this.#ws)
+      }
       await this.connect()
-      console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ws connect.`, this.#ws)
     }
     // 发送消息
     this.#ws!.send(_data)
@@ -131,7 +132,9 @@ export class PrWebSocket {
 
   // 连接成功
   #onOpen = () => {
-    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws:连接成功`, this.#options)
+    if (this.#options.debug) {
+      console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is success.`, this.#options)
+    }
     this.#surplusReconnectCount = this.#options.reconnectCount // 连接成功 重置重连次数
     this.#initHeartbeat() // 开启心跳
     this.#resolve(this.#ws)
@@ -139,14 +142,20 @@ export class PrWebSocket {
 
   // 连接错误
   #onError = (e: Event) => {
-    console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws:连接错误`, e)
+    if (this.#options.debug) {
+      console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is error.`, e)
+    }
     this.#reconnect(e)
   }
 
   // 连接关闭
   #onClose = (e: CloseEvent) => {
-    console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws:连接关闭${e.target === this.#ws}`, e)
-    this.#reconnect(e)
+    if (this.#options.debug) {
+      console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is close.`, e)
+    }
+    if (e.code !== 1000) {
+      this.#reconnect(e)
+    }
   }
 
   // 心跳
@@ -166,14 +175,23 @@ export class PrWebSocket {
   #reconnect = (e: Event | CloseEvent) => {
     this.close() // 尝试关闭
 
-    if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return // 没有剩余重连次数
+    if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return this.close() // 没有剩余重连次数
     const isReconnect = this.#options.checkReconnect(e) // 判断是否重连
     if (!isReconnect) return // 禁止重连
 
-    const func = () => {
-      this.connect()
+    const func = async () => {
+      if (this.#options.debug) {
+        console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await reconnect.`, e)
+      }
+      await this.connect()
       this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
     }
+
+    // 清除可能存在的计时器
+    if (this.#reconnectIntervalTimer) {
+      clearTimeout(this.#reconnectIntervalTimer)
+    }
+
     this.#reconnectIntervalTimer = setTimeout(func, this.#options.reconnectIntervalTime)
   }
 }
