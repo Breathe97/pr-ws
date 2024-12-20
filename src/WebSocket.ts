@@ -20,8 +20,7 @@ export interface PrWebSocketOptions {
   debug?: boolean
 
   /**
-   * 重连最大次数
-   * @description 默认-1 不限次数 0为不重连
+   * 重连最大次数 默认-1 不限次数 0为不重连
    */
   reconnectCount?: number
 
@@ -89,7 +88,6 @@ export class PrWebSocket {
     clearInterval(this.#reconnectIntervalTimer)
     clearInterval(this.#heartbeatIntervalTimer)
     this.#ws?.close(code, reason)
-    this.#ws = undefined
   }
 
   /**
@@ -153,9 +151,11 @@ export class PrWebSocket {
     if (this.#options.debug) {
       console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is close.`, e)
     }
-    if (e.code !== 1000) {
-      this.#reconnect(e)
+    if (e.code === 1000) {
+      this.#ws = undefined
+      return
     }
+    this.#reconnect(e)
   }
 
   // 心跳
@@ -173,23 +173,33 @@ export class PrWebSocket {
 
   // 重新连接
   #reconnect = (e: Event | CloseEvent) => {
-    this.close() // 尝试关闭
+    this.close() // 尝试关闭可能存在的链接
 
-    if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return this.close() // 没有剩余重连次数
+    // 没有重连机会
+    if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) {
+      if (this.#options.debug) {
+        console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: surplusReconnectCount is 0.`)
+      }
+      return
+    }
+
     const isReconnect = this.#options.checkReconnect(e) // 判断是否重连
-    if (!isReconnect) return // 禁止重连
 
+    // 被阻止重连
+    if (!isReconnect) {
+      if (this.#options.debug) {
+        console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: checkReconnect is false.`)
+      }
+      return // 禁止重连
+    }
+
+    // 即将重连
     const func = async () => {
       if (this.#options.debug) {
         console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await reconnect.`, e)
       }
       await this.connect()
       this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
-    }
-
-    // 清除可能存在的计时器
-    if (this.#reconnectIntervalTimer) {
-      clearTimeout(this.#reconnectIntervalTimer)
     }
 
     this.#reconnectIntervalTimer = setTimeout(func, this.#options.reconnectIntervalTime)
