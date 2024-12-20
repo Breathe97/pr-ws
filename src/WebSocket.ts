@@ -96,6 +96,7 @@ export class PrWebSocket {
   connect = () => {
     return new Promise((resolve) => {
       if (this.#ws && this.#ws.readyState === 1) return resolve(this.#ws)
+      this.close() // 尝试关闭可能存在的链接
       this.#resolve = resolve
       this.#ws = new WebSocket(this.#options.url)
       this.#ws.binaryType = this.#options.binaryType
@@ -112,9 +113,9 @@ export class PrWebSocket {
    * 发送消息
    */
   sendMessage = async (_data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
-    if (!this.#ws) {
+    if (!this.#ws || this.#ws.readyState !== 1) {
       if (this.#options.debug) {
-        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is undefined. await connect.`, this.#ws)
+        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is error. await connect.`, this.#ws)
       }
       await this.connect()
     }
@@ -173,8 +174,6 @@ export class PrWebSocket {
 
   // 重新连接
   #reconnect = (e: Event | CloseEvent) => {
-    this.close() // 尝试关闭可能存在的链接
-
     // 没有重连机会
     if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) {
       if (this.#options.debug) {
