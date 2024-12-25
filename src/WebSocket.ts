@@ -20,6 +20,11 @@ export interface PrWebSocketOptions {
   debug?: boolean
 
   /**
+   * 发送消息前是否自动检查并连接
+   */
+  sendBeforAutoConnect?: boolean
+
+  /**
    * 重连最大次数 默认-1 不限次数 0为不重连
    */
   reconnectCount?: number
@@ -71,6 +76,7 @@ export class PrWebSocket {
     binaryType: 'blob' as BinaryType,
     timeout: 6 * 1000,
     debug: false,
+    sendBeforAutoConnect: false,
     reconnectCount: -1,
     reconnectIntervalTime: 5000,
     heartbeatIntervalTime: 10000,
@@ -95,13 +101,18 @@ export class PrWebSocket {
     this.#surplusReconnectCount = this.#options.reconnectCount
   }
 
+  #clear = () => {
+    clearInterval(this.reconnectIntervalTimer)
+    clearInterval(this.#heartbeatIntervalTimer)
+    this.#ws = undefined
+  }
+
   /**
    * 关闭
    */
   close = (code: number = 1000, reason: string = '主动关闭') => {
-    clearInterval(this.reconnectIntervalTimer)
-    clearInterval(this.#heartbeatIntervalTimer)
     this.#ws?.close(code, reason)
+    this.#clear()
   }
 
   /**
@@ -170,9 +181,11 @@ export class PrWebSocket {
     // 当 ws 异常的时候尝试进行重连
     if (!this.#ws) {
       if (this.#options.debug) {
-        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is not ready.`, this.#ws)
+        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is not ready. await connect.`, this.#ws)
       }
-      await this.connect()
+      if (this.#options.sendBeforAutoConnect) {
+        await this.connect()
+      }
     }
     // 发送消息
     this.#ws!.send(_data)
@@ -207,10 +220,9 @@ export class PrWebSocket {
     if (this.#options.debug) {
       console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is close. code: ${e.code}`, e)
     }
-    if (e.code === 1000) {
-      this.#ws = undefined
-      return
-    }
+
+    if (e.code === 1000) return this.#clear()
+
     this.reconnect(e)
   }
 
