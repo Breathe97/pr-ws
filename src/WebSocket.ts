@@ -35,15 +35,22 @@ export interface PrWebSocketOptions {
   heartbeatIntervalTime?: number
 
   /**
-   * 重连成功的回调
-   */
-  onReconnect?: (e: WebSocket) => Promise<void>
-
-  /**
    * 是否重连
    * @description 返回true时立即重连 返回false 不重连 并销毁 WebSocket
    */
   checkReconnect?: (e: Event | CloseEvent) => boolean
+
+  /**
+   * 重连成功
+   * @description 重连成功后执行该函数
+   */
+  onReconnectSuccess?: (e: WebSocket) => Promise<void>
+
+  /**
+   * 重连停止
+   * @description 当重连次数耗尽或 checkReconnect 主动阻止时 不在继续重连时 触发该函数
+   */
+  onReconnectStop?: (e: WebSocket) => Promise<void>
 
   /**
    * 自定义心跳事件
@@ -67,8 +74,9 @@ export class PrWebSocket {
     reconnectCount: -1,
     reconnectIntervalTime: 5000,
     heartbeatIntervalTime: 10000,
-    onReconnect: async (_e: any) => {},
     checkReconnect: (_e: any) => true,
+    onReconnectSuccess: async (_e: any) => {},
+    onReconnectStop: async (_e: any) => {},
     getHeartbeatMsg: () => JSON.stringify({ event: 'heartbeat' }) as string | ArrayBufferLike | Blob | ArrayBufferView,
     onMessage: (_e: any) => {}
   }
@@ -122,23 +130,20 @@ export class PrWebSocket {
    */
   reconnect = async (e?: Event | CloseEvent) => {
     return new Promise((resolve, reject) => {
-      // 没有重连机会
-      if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) {
+      // 停止重连
+      const onReconnectStop = (msg: string) => {
         if (this.#options.debug) {
-          console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: surplusReconnectCount is 0.`)
+          console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ${msg}`)
         }
-        return reject('surplusReconnectCount is 0.')
+        this.#options.onReconnectStop({ msg })
+        return reject(msg)
       }
 
-      const isReconnect = this.#options.checkReconnect(e) // 判断是否重连
+      // 停止重连 没有重连次数
+      if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return onReconnectStop('stop reconnect. surplusReconnectCount is 0.')
 
-      // 被阻止重连
-      if (!isReconnect) {
-        if (this.#options.debug) {
-          console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: checkReconnect is false. stop reconnect.`)
-        }
-        return reject('checkReconnect is false.') // 禁止重连
-      }
+      // 停止重连 自定义判断是否重连
+      if (!this.#options.checkReconnect(e)) return onReconnectStop('stop reconnect. checkReconnect is false.')
 
       if (this.#options.debug) {
         console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ${this.#options.reconnectIntervalTime}ms run reconnect. surplusReconnectCount is ${this.#surplusReconnectCount}`, e)
@@ -149,9 +154,9 @@ export class PrWebSocket {
         this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
         await this.connect()
         try {
-          await this.#options.onReconnect(this.#ws)
+          await this.#options.onReconnectSuccess(this.#ws)
         } catch (error) {
-          console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->pr-ws: onConnect is error`, error)
+          console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->pr-ws: onReconnectSuccess is error`, error)
         }
         resolve(true)
       }, this.#options.reconnectIntervalTime)
