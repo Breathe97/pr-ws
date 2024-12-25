@@ -163,10 +163,11 @@ export class PrWebSocket {
    */
   sendMessage = async (_data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
     // 当 ws 异常的时候尝试进行重连
-    if (!this.#ws || this.#ws.readyState !== 1) {
+    if (!this.#ws) {
       if (this.#options.debug) {
-        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is error.`, this.#ws)
+        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is not ready.`, this.#ws)
       }
+      await this.connect()
     }
     // 发送消息
     this.#ws!.send(_data)
@@ -194,7 +195,6 @@ export class PrWebSocket {
     if (this.#options.debug) {
       console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is error.`, e)
     }
-    this.reconnect(e)
   }
 
   // 连接关闭

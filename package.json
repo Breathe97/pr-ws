@@ -1,7 +1,7 @@
 {
   "name": "pr-ws",
   "description": "快速创建 WebSocket 链接 内置心跳和重连逻辑。",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "type": "module",
   "files": [
     "dist"
