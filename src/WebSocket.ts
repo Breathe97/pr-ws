@@ -90,7 +90,7 @@ export class PrWebSocket {
   #ws: WebSocket | undefined // 当前连接实例
 
   #surplusReconnectCount = -1 // 剩余重连次数
-  reconnectIntervalTimer: number = 0 // 重连间隔时间计时器
+  #reconnectIntervalTimer: number = 0 // 重连间隔时间计时器
   #heartbeatIntervalTimer: number = 0 // 心跳间隔时间计时器
 
   #resolve = (_e: unknown) => {} // 初始化成功的回调
@@ -101,16 +101,10 @@ export class PrWebSocket {
     this.#surplusReconnectCount = this.#options.reconnectCount
   }
 
-  #clear = () => {
-    clearInterval(this.reconnectIntervalTimer)
-    clearInterval(this.#heartbeatIntervalTimer)
-    this.#ws = undefined
-  }
-
   /**
    * 关闭
    */
-  close = (code: number = 1000, reason: string = '主动关闭') => {
+  close = async (code: number = 1000, reason: string = 'correctly close.') => {
     this.#ws?.close(code, reason)
     this.#clear()
   }
@@ -119,9 +113,8 @@ export class PrWebSocket {
    * 连接
    */
   connect = () => {
-    return new Promise((resolve) => {
-      if (this.#ws && this.#ws.readyState === 1) return resolve(this.#ws)
-      this.close() // 尝试关闭可能存在的链接
+    return new Promise(async (resolve) => {
+      await this.close(1000, 'second connect.') // 尝试关闭可能存在的链接
       this.#resolve = resolve
       this.#ws = new WebSocket(this.#options.url)
       this.#ws.binaryType = this.#options.binaryType
@@ -161,7 +154,7 @@ export class PrWebSocket {
       }
 
       // 即将重连
-      this.reconnectIntervalTimer = setTimeout(async () => {
+      this.#reconnectIntervalTimer = setTimeout(async () => {
         this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
         await this.connect()
         try {
@@ -181,14 +174,17 @@ export class PrWebSocket {
     // 当 ws 异常的时候尝试进行重连
     if (!this.#ws) {
       if (this.#options.debug) {
-        console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is not ready. await connect.`, this.#ws)
+        console.warn('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is not ready.`)
       }
       if (this.#options.sendBeforAutoConnect) {
+        if (this.#options.debug) {
+          console.warn('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ws connect.`)
+        }
         await this.connect()
       }
     }
     // 发送消息
-    this.#ws!.send(_data)
+    this.#ws?.send(_data)
   }
 
   // 服务端消息回调
@@ -221,21 +217,28 @@ export class PrWebSocket {
       console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is close. code: ${e.code}`, e)
     }
 
-    if (e.code === 1000) return this.#clear()
+    this.#clear() // 只要关闭都清理当前实列
 
-    this.reconnect(e)
+    // 非正常关闭
+    if (e.code !== 1000) {
+      this.reconnect(e)
+    }
   }
 
   // 心跳
   #initHeartbeat = () => {
-    if (this.#heartbeatIntervalTimer) {
-      clearInterval(this.#heartbeatIntervalTimer)
-    }
     this.#heartbeatIntervalTimer = setInterval(() => {
       const message = this.#options.getHeartbeatMsg()
       if (message) {
         this.sendMessage(message)
       }
     }, this.#options.heartbeatIntervalTime)
+  }
+
+  // 清理
+  #clear = () => {
+    clearInterval(this.#reconnectIntervalTimer)
+    clearInterval(this.#heartbeatIntervalTimer)
+    this.#ws = undefined
   }
 }
