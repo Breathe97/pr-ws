@@ -107,9 +107,11 @@ export class PrWebSocket {
    * 关闭
    */
   close = async (code: number = 1000, reason: string = 'correctly close.') => {
-    this.#permanentClosed = true
-    this.#ws?.close(code, reason)
-    this.#clear()
+    if (this.#ws) {
+      this.#permanentClosed = true
+      this.#ws?.close(code, reason)
+      this.#clear()
+    }
   }
 
   /**
