@@ -217,7 +217,7 @@ export class PrWebSocket {
   // 连接关闭
   #onClose = (e: CloseEvent) => {
     if (this.#options.debug) {
-      console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is close. code: ${e.code}`, e)
+      console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is close. code: ${e.code}, permanentClosed is ${this.#permanentClosed}.`, e)
     }
 
     this.#clear() // 只要关闭都清理当前实列
