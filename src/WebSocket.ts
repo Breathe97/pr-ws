@@ -93,6 +93,8 @@ export class PrWebSocket {
   #reconnectIntervalTimer: number = 0 // 重连间隔时间计时器
   #heartbeatIntervalTimer: number = 0 // 心跳间隔时间计时器
 
+  #permanentClosed: boolean = false // 是否永久关闭 在主动调用close 之后为true 防止因网络原因导致 1006 继续重连
+
   #resolve = (_e: unknown) => {} // 初始化成功的回调
 
   constructor(_options: PrWebSocketOptions) {
@@ -105,6 +107,7 @@ export class PrWebSocket {
    * 关闭
    */
   close = async (code: number = 1000, reason: string = 'correctly close.') => {
+    this.#permanentClosed = true
     this.#ws?.close(code, reason)
     this.#clear()
   }
@@ -219,8 +222,8 @@ export class PrWebSocket {
 
     this.#clear() // 只要关闭都清理当前实列
 
-    // 非正常关闭
-    if (e.code !== 1000) {
+    // 非主动关闭 并且 非正常关闭
+    if (!this.#permanentClosed && e.code !== 1000) {
       this.reconnect(e)
     }
   }
