@@ -226,8 +226,9 @@ export class PrWebSocket {
 
     // 非主动关闭 并且 非正常关闭
     if (!this.#permanentClosed && e.code !== 1000) {
-      this.reconnect(e)
+      return this.reconnect(e)
     }
+    this.#ws = undefined
   }
 
   // 心跳
@@ -244,6 +245,5 @@ export class PrWebSocket {
   #clear = () => {
     clearInterval(this.#reconnectIntervalTimer)
     clearInterval(this.#heartbeatIntervalTimer)
-    this.#ws = undefined
   }
 }
