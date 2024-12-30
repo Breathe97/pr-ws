@@ -119,7 +119,6 @@ export class PrWebSocket {
    */
   connect = () => {
     return new Promise(async (resolve) => {
-      await this.close(1000, 'second connect.') // 尝试关闭可能存在的链接
       this.#resolve = resolve
       this.#ws = new WebSocket(this.#options.url)
       this.#ws.binaryType = this.#options.binaryType
