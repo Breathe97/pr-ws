@@ -109,8 +109,8 @@ export class PrWebSocket {
   close = async (code: number = 1000, reason: string = 'correctly close.') => {
     if (this.#ws) {
       this.#permanentClosed = true
-      this.#ws?.close(code, reason)
       this.#clear()
+      this.#ws?.close(code, reason)
     }
   }
 
