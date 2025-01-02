@@ -30,6 +30,11 @@ export interface PrWebSocketOptions {
   reconnectCount?: number
 
   /**
+   * 重连最大时间 ms 默认为-1 不限时间
+   */
+  reconnectTime?: number
+
+  /**
    * 重连间隔时间 ms
    */
   reconnectIntervalTime?: number
@@ -78,6 +83,7 @@ export class PrWebSocket {
     debug: false,
     sendBeforAutoConnect: false,
     reconnectCount: -1,
+    reconnectTime: 60 * 1000,
     reconnectIntervalTime: 5000,
     heartbeatIntervalTime: 10000,
     checkReconnect: (_e: any) => true,
@@ -90,6 +96,8 @@ export class PrWebSocket {
   #ws: WebSocket | undefined // 当前连接实例
 
   #surplusReconnectCount = -1 // 剩余重连次数
+  #maxReconnectionTimeStamp = -1 // 最大重连时间戳
+
   #reconnectIntervalTimer: number = 0 // 重连间隔时间计时器
   #heartbeatIntervalTimer: number = 0 // 心跳间隔时间计时器
 
@@ -147,10 +155,13 @@ export class PrWebSocket {
         return reject(msg)
       }
 
+      // 停止重连 重连超时
+      if (this.#checkReconnectionTime() === false) return onReconnectStop('stop reconnect. exceed maxReconnectionTime.')
+
       // 停止重连 没有重连次数
       if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return onReconnectStop('stop reconnect. surplusReconnectCount is 0.')
 
-      // 停止重连 自定义判断是否重连
+      // 停止重连 是否主动判断
       if (!this.#options.checkReconnect(e)) return onReconnectStop('stop reconnect. checkReconnect is false.')
 
       if (this.#options.debug) {
@@ -191,6 +202,20 @@ export class PrWebSocket {
     this.#ws?.send(_data)
   }
 
+  // 检查最大重连时间
+  #checkReconnectionTime = () => {
+    const now = Date.now()
+    // 第一次重连记录最大时间
+    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe:this.#maxReconnectionTimeStamp`, this.#maxReconnectionTimeStamp)
+    if (this.#maxReconnectionTimeStamp === -1) {
+      this.#maxReconnectionTimeStamp = now + this.#options.reconnectTime
+    }
+    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe:this.#maxReconnectionTimeStamp`, this.#maxReconnectionTimeStamp)
+    // 比较当前时间是否已经超出最大时间
+    if (now > this.#maxReconnectionTimeStamp) return false // 不能再次重连
+    return true // 还阔以重连
+  }
+
   // 服务端消息回调
   #onMessage = (e: MessageEvent) => {
     const { data } = e
@@ -203,6 +228,7 @@ export class PrWebSocket {
       console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is success.`, this.#ws)
     }
     this.#surplusReconnectCount = this.#options.reconnectCount // 连接成功 重置重连次数
+    this.#maxReconnectionTimeStamp = -1
     this.#initHeartbeat() // 开启心跳
 
     this.#resolve(this.#ws)
