@@ -206,11 +206,9 @@ export class PrWebSocket {
   #checkReconnectionTime = () => {
     const now = Date.now()
     // 第一次重连记录最大时间
-    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe:this.#maxReconnectionTimeStamp`, this.#maxReconnectionTimeStamp)
     if (this.#maxReconnectionTimeStamp === -1) {
       this.#maxReconnectionTimeStamp = now + this.#options.reconnectTime
     }
-    console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->Breathe:this.#maxReconnectionTimeStamp`, this.#maxReconnectionTimeStamp)
     // 比较当前时间是否已经超出最大时间
     if (now > this.#maxReconnectionTimeStamp) return false // 不能再次重连
     return true // 还阔以重连
