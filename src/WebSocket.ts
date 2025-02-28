@@ -191,7 +191,7 @@ export class PrWebSocket {
    */
   sendMessage = async (_data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
     // 当 ws 异常的时候尝试进行重连
-    if (!this.#ws) {
+    if (!this.#ws || this.#ws.readyState !== 1) {
       if (this.#options.debug) {
         console.warn('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is not ready.`)
       }
