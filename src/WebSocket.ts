@@ -93,7 +93,7 @@ export class PrWebSocket {
     onMessage: (_e: any) => {}
   }
 
-  #ws: WebSocket | undefined // 当前连接实例
+  ws: WebSocket | undefined // 当前连接实例
 
   #surplusReconnectCount = -1 // 剩余重连次数
   #maxReconnectionTimeStamp = -1 // 最大重连时间戳
@@ -115,10 +115,10 @@ export class PrWebSocket {
    * 关闭
    */
   close = async (code: number = 1000, reason: string = 'correctly close.') => {
-    if (this.#ws) {
+    if (this.ws) {
       this.#permanentClosed = true
       this.#clear()
-      this.#ws?.close(code, reason)
+      this.ws?.close(code, reason)
     }
   }
 
@@ -128,14 +128,14 @@ export class PrWebSocket {
   connect = () => {
     return new Promise(async (resolve) => {
       this.#resolve = resolve
-      this.#ws = new WebSocket(this.#options.url)
-      this.#ws.binaryType = this.#options.binaryType
+      this.ws = new WebSocket(this.#options.url)
+      this.ws.binaryType = this.#options.binaryType
 
       // 指定回调事件
-      this.#ws.onopen = this.#onOpen
-      this.#ws.onmessage = this.#onMessage
-      this.#ws.onerror = this.#onError
-      this.#ws.onclose = this.#onClose
+      this.ws.onopen = this.#onOpen
+      this.ws.onmessage = this.#onMessage
+      this.ws.onerror = this.#onError
+      this.ws.onclose = this.#onClose
     })
   }
 
@@ -177,7 +177,7 @@ export class PrWebSocket {
         this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
         await this.connect()
         try {
-          await this.#options.onReconnectSuccess(this.#ws)
+          await this.#options.onReconnectSuccess(this.ws)
         } catch (error) {
           console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->pr-ws: onReconnectSuccess is error`, error)
         }
@@ -191,7 +191,7 @@ export class PrWebSocket {
    */
   sendMessage = async (_data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
     // 当 ws 异常的时候尝试进行重连
-    if (!this.#ws || this.#ws.readyState !== 1) {
+    if (!this.ws || this.ws.readyState !== 1) {
       if (this.#options.debug) {
         console.warn('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ws is not ready.`)
       }
@@ -203,7 +203,7 @@ export class PrWebSocket {
       }
     }
     // 发送消息
-    this.#ws?.send(_data)
+    this.ws?.send(_data)
   }
 
   // 检查最大重连时间
@@ -227,13 +227,13 @@ export class PrWebSocket {
   // 连接成功
   #onOpen = () => {
     if (this.#options.debug) {
-      console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is success.`, this.#ws)
+      console.log('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: connect is success.`, this.ws)
     }
     this.#surplusReconnectCount = this.#options.reconnectCount // 连接成功 重置重连次数
     this.#maxReconnectionTimeStamp = -1
     this.#initHeartbeat() // 开启心跳
 
-    this.#resolve(this.#ws)
+    this.#resolve(this.ws)
   }
 
   // 连接错误
@@ -255,7 +255,7 @@ export class PrWebSocket {
     if (!this.#permanentClosed && e.code !== 1000) {
       return this.reconnect(e)
     }
-    this.#ws = undefined
+    this.ws = undefined
   }
 
   // 心跳
