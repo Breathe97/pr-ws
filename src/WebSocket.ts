@@ -251,8 +251,8 @@ export class PrWebSocket {
 
     this.#clear() // 只要关闭都清理当前实列
 
-    // 非主动关闭 并且 非正常关闭
-    if (!this.#permanentClosed && e.code !== 1000) {
+    // 非主动关闭
+    if (!this.#permanentClosed) {
       return this.reconnect(e)
     }
     this.ws = undefined
