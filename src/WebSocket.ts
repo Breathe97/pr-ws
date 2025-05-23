@@ -145,7 +145,7 @@ export class PrWebSocket {
    * @returns ws
    */
   reconnect = async (e?: Event | CloseEvent) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (this.#options.debug) {
         console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await reconnect.`)
       }
@@ -156,7 +156,7 @@ export class PrWebSocket {
           console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ${msg}`)
         }
         this.#options.onReconnectStop({ msg })
-        return reject(msg)
+        resolve(msg)
       }
 
       // 停止重连 重连超时
