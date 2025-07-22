@@ -2,7 +2,7 @@ export interface PrWebSocketOptions {
   /**
    * 连接地址
    */
-  url: string
+  url?: string
 
   /**
    * 数据传输类型
