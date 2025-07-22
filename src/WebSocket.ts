@@ -119,6 +119,13 @@ export class PrWebSocket {
   }
 
   /**
+   * 设置参数
+   */
+  setOptions = (_options: PrWebSocketOptions) => {
+    this.#options = { ...this.#options, ..._options }
+  }
+
+  /**
    * 连接
    */
   connect = () => {
