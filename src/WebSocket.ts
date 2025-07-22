@@ -51,36 +51,6 @@ export interface PrWebSocketOptions {
    * @description 默认10*1000ms
    */
   heartbeatIntervalTime?: number
-
-  /**
-   * 是否重连
-   * @description 返回true时立即重连 返回false 不重连 并销毁 WebSocket
-   */
-  checkReconnect?: (e: Event | CloseEvent) => boolean
-
-  /**
-   * 重连成功
-   * @description 重连成功后执行该函数
-   */
-  onReconnectSuccess?: (e: WebSocket) => Promise<void>
-
-  /**
-   * 重连停止
-   * @description 当重连次数耗尽或 checkReconnect 主动阻止时 不在继续重连时 触发该函数
-   */
-  onReconnectStop?: (e: WebSocket) => Promise<void>
-
-  /**
-   * 自定义心跳
-   * @description 将函数的返回值作为每次心跳的message
-   */
-  getHeartbeatMsg?: () => string | ArrayBufferLike | Blob | ArrayBufferView
-
-  /**
-   * 消息回调
-   * @description 接收当前WebSocket的所有消息
-   */
-  onMessage?: (e: any) => void
 }
 
 export class PrWebSocket {
@@ -93,15 +63,40 @@ export class PrWebSocket {
     reconnectCount: -1,
     reconnectTime: 60 * 1000,
     reconnectIntervalTime: 5000,
-    heartbeatIntervalTime: 10000,
-    checkReconnect: (_e: any) => true,
-    onReconnectSuccess: async (_e: any) => {},
-    onReconnectStop: async (_e: any) => {},
-    getHeartbeatMsg: () => JSON.stringify({ event: 'heartbeat' }) as string | ArrayBufferLike | Blob | ArrayBufferView,
-    onMessage: (_e: any) => {}
+    heartbeatIntervalTime: 10000
   }
 
   ws: WebSocket | undefined // 当前连接实例
+
+  /**
+   * 是否重连
+   * @description 返回true时立即重连 返回false 不重连 并销毁 WebSocket
+   */
+  checkReconnect = (_e: any) => true
+
+  /**
+   * 重连成功
+   * @description 重连成功后执行该函数
+   */
+  onReconnectSuccess = async (_e: any) => {}
+
+  /**
+   * 重连停止
+   * @description 当重连次数耗尽或 checkReconnect 主动阻止时 不在继续重连时 触发该函数
+   */
+  onReconnectStop = async (_e: any) => {}
+
+  /**
+   * 自定义心跳
+   * @description 将函数的返回值作为每次心跳的message
+   */
+  getHeartbeatMsg = () => JSON.stringify({ event: 'heartbeat' }) as string | ArrayBufferLike | Blob | ArrayBufferView
+
+  /**
+   * 消息回调
+   * @description 接收当前WebSocket的所有消息
+   */
+  onMessage = (_e: any) => {}
 
   #surplusReconnectCount = -1 // 剩余重连次数
   #maxReconnectionTimeStamp = -1 // 最大重连时间戳
@@ -196,7 +191,7 @@ export class PrWebSocket {
         if (this.#options.debug) {
           console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: ${msg}`)
         }
-        this.#options.onReconnectStop({ msg })
+        this.onReconnectStop({ msg })
         resolve(msg)
       }
 
@@ -207,7 +202,7 @@ export class PrWebSocket {
       if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return onReconnectStop('stop reconnect. surplusReconnectCount is 0.')
 
       // 停止重连 是否主动判断
-      if (!this.#options.checkReconnect(e)) return onReconnectStop('stop reconnect. checkReconnect is false.')
+      if (!this.checkReconnect(e)) return onReconnectStop('stop reconnect. checkReconnect is false.')
 
       if (this.#options.debug) {
         console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ${this.#options.reconnectIntervalTime}ms run reconnect. surplusReconnectCount is ${this.#surplusReconnectCount}`, e)
@@ -218,7 +213,7 @@ export class PrWebSocket {
         this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
         await this.connect()
         try {
-          await this.#options.onReconnectSuccess(this.ws)
+          await this.onReconnectSuccess(this.ws)
         } catch (error) {
           console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->pr-ws: onReconnectSuccess is error`, error)
         }
@@ -273,13 +268,13 @@ export class PrWebSocket {
   // 服务端消息回调
   #onMessage = (e: MessageEvent) => {
     const { data } = e
-    this.#options.onMessage(data)
+    this.onMessage(data)
   }
 
   // 心跳
   #initHeartbeat = () => {
     this.#heartbeatIntervalTimer = window.setInterval(() => {
-      const message = this.#options.getHeartbeatMsg()
+      const message = this.getHeartbeatMsg()
       if (message) {
         this.sendMessage(message)
       }
