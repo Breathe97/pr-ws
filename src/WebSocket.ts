@@ -122,7 +122,7 @@ export class PrWebSocket {
    * 连接
    */
   connect = () => {
-    return new Promise(async (resolve, reject) => {
+    return new Promise<Event>(async (resolve, reject) => {
       this.ws = new WebSocket(this.#options.url)
       this.ws.binaryType = this.#options.binaryType
 
