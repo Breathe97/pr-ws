@@ -73,6 +73,9 @@ export class PrWebSocket {
    * @description 返回true时立即重连 返回false 不重连 并销毁 WebSocket
    */
   checkReconnect = async (_e: any) => {
+    if (this.#options.debug) {
+      console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ${this.#options.reconnectIntervalTime}ms run reconnect. surplusReconnectCount is ${this.#surplusReconnectCount}`)
+    }
     await new Promise((resolve) => setTimeout(() => resolve(true), this.#options.reconnectIntervalTime))
     return true
   }
@@ -208,10 +211,6 @@ export class PrWebSocket {
 
       // 停止重连 是否主动判断
       if (!checkReconnect) return onReconnectStop('stop reconnect. checkReconnect is false.')
-
-      if (this.#options.debug) {
-        console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ${this.#options.reconnectIntervalTime}ms run reconnect. surplusReconnectCount is ${this.#surplusReconnectCount}`, e)
-      }
 
       // 开始重连
       this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
