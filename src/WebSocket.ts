@@ -72,7 +72,10 @@ export class PrWebSocket {
    * 是否重连
    * @description 返回true时立即重连 返回false 不重连 并销毁 WebSocket
    */
-  checkReconnect = (_e: any) => true
+  checkReconnect = async (_e: any) => {
+    await new Promise((resolve) => setTimeout(() => resolve(true), this.#options.reconnectIntervalTime))
+    return true
+  }
 
   /**
    * 重连成功
@@ -181,7 +184,7 @@ export class PrWebSocket {
    * @returns ws
    */
   reconnect = async (e: CloseEvent) => {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
       if (this.#options.debug) {
         console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await reconnect.`)
       }
@@ -201,24 +204,19 @@ export class PrWebSocket {
       // 停止重连 没有重连次数
       if (this.#surplusReconnectCount !== -1 && this.#surplusReconnectCount === 0) return onReconnectStop('stop reconnect. surplusReconnectCount is 0.')
 
+      const checkReconnect = await this.checkReconnect(e) // 等待最终用户判断是否重连
+
       // 停止重连 是否主动判断
-      if (!this.checkReconnect(e)) return onReconnectStop('stop reconnect. checkReconnect is false.')
+      if (!checkReconnect) return onReconnectStop('stop reconnect. checkReconnect is false.')
 
       if (this.#options.debug) {
         console.info('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;padding:16px 0;', `------->pr-ws: await ${this.#options.reconnectIntervalTime}ms run reconnect. surplusReconnectCount is ${this.#surplusReconnectCount}`, e)
       }
 
-      // 即将重连
-      this.#reconnectIntervalTimer = window.setTimeout(async () => {
-        this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
-        await this.connect()
-        try {
-          await this.onReconnectSuccess(this.ws)
-        } catch (error) {
-          console.error('\x1b[38;2;0;151;255m%c%s\x1b[0m', 'color:#0097ff;', `------->pr-ws: onReconnectSuccess is error`, error)
-        }
-        resolve(true)
-      }, this.#options.reconnectIntervalTime)
+      // 开始重连
+      this.#surplusReconnectCount = Math.max(-1, this.#surplusReconnectCount - 1)
+      await this.connect().then(() => this.onReconnectSuccess(this.ws))
+      resolve(true)
     })
   }
 
